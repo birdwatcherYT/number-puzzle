@@ -1,11 +1,37 @@
 body {
-  margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: black;
+}
+
+.small-white-font {
+  color: white;
+  font-size: small;
+  margin-left: 10px;
+}
+
+.white-font {
+  color: white;
+  margin-left: 10px;
+}
+
+a:link {
+  color: cyan;
+}
+
+a:visited {
+  color: cyan;
+}
+
+a:hover {
+  color: red;
+}
+
+a:active {
+  color: red;
 }
 
 code {
