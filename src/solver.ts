@@ -1,94 +1,18 @@
-type KeyValue<T> = {
-	key: number;
-	value: T
-};
+import React, { Dispatch, SetStateAction, } from 'react';
+import PriorityQueue from "./priorityQueue";
+import ZobristHashing from "./zobristHashing";
+import { sleep } from "./tools";
 
-class PriorityQueue<T> {
-	heap: KeyValue<T>[];
 
-	constructor() {
-		this.heap = [];
+function isGoal(board: number[][]): boolean {
+	const size = board.length;
+	const nums = size * size;
+	for (let i = 0; i < size; i++) {
+		for (let j = 0; j < size; j++)
+			if (board[i][j] !== (i * size + j + 1) % nums)
+				return false;
 	}
-
-	push(key: number, value: T) {
-		const heap = this.heap;
-
-		heap.push({ key: key, value: value });
-
-		let child = heap.length - 1;
-		while (child) {
-			const parent = Math.floor((child - 1) / 2);
-			if (heap[child].key >= heap[parent].key)
-				break;
-			[heap[child], heap[parent]] = [heap[parent], heap[child]];
-			child = parent;
-		}
-	}
-
-	pop(): KeyValue<T> {
-		const heap = this.heap;
-
-		const top = heap[0];
-		heap[0] = heap[heap.length - 1];
-		heap.pop();
-
-		let parent = 0;
-		while (true) {
-			let child = 2 * parent + 1;
-			if (child >= heap.length)
-				break;
-			if (child + 1 < heap.length && heap[child + 1].key < heap[child].key)
-				++child;
-			if (heap[parent].key <= heap[child].key)
-				break;
-			[heap[child], heap[parent]] = [heap[parent], heap[child]];
-			parent = child;
-		}
-
-		return top;
-	}
-
-	size(): number {
-		return this.heap.length;
-	}
-
-	top(): KeyValue<T> {
-		return this.heap[0];
-	}
-};
-
-class ZobristHashing {
-	h: number[];
-	constructor(size: number) {
-		this.h = [];
-		for (let i = 0; i < size; ++i) {
-			this.h.push((Math.random() * ((~0) >>> 0)) >>> 0);
-		}
-	}
-	hash(array: number[]): number {
-		let value = 0 >>> 0;
-		array.forEach(
-			x => { value ^= this.h[x]; }
-		);
-		return value;
-	}
-	hashData(data: number[][]): number {
-		const nums = data.length * data.length;
-		let value = 0 >>> 0;
-		data.forEach(
-			(row, i) => {
-				row.forEach(
-					(x, j) => { value ^= this.h[x * nums + (i * data.length + j)]; }
-				);
-			}
-		);
-		return value;
-	}
-};
-
-// ミリ秒間待機する
-function sleep(ms: number) {
-	return new Promise(resolve => setTimeout(resolve, ms));
+	return true;
 }
 
 
@@ -131,7 +55,7 @@ const zeroPosition = (board: number[][]): [number, number] => {
 	return [-1, -1];
 };
 
-async function solve(board: number[][], interrupt: { stop: boolean }) {
+async function solve(board: number[][], property: { stop: boolean, progress: Dispatch<SetStateAction<string>> | undefined }) {
 	const size = board.length;
 	const nums = size * size;
 	// Zobrist hashing
@@ -174,9 +98,11 @@ async function solve(board: number[][], interrupt: { stop: boolean }) {
 			break;
 		loop++;
 		if (loop % 10000 === 0) {
-			await sleep(1);
+			if (property.progress)
+				property.progress(`visit: ${loop} < queue: ${pq.size()}`);
 			console.log(loop);
-			if (interrupt.stop)
+			await sleep(0);
+			if (property.stop)
 				return [];
 		}
 		let node = fValue.get(nowHash);
@@ -202,6 +128,8 @@ async function solve(board: number[][], interrupt: { stop: boolean }) {
 		}
 	}
 	console.log("goal");
+	if (property.progress)
+		property.progress(`visit: ${loop} < queue: ${pq.size()}`);
 
 	const path = [];
 	let node = fValue.get(goalHash);
@@ -217,4 +145,4 @@ async function solve(board: number[][], interrupt: { stop: boolean }) {
 
 
 
-export { solve, randomBoard, sleep, zeroPosition };
+export { solve, randomBoard, zeroPosition, isGoal };

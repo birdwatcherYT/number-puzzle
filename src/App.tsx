@@ -1,27 +1,16 @@
-import React, { BaseSyntheticEvent, useState } from 'react';
+import React, { BaseSyntheticEvent, Dispatch, SetStateAction, useState } from 'react';
 import './App.css';
-import { solve, randomBoard, sleep, zeroPosition } from './solver';
+import { solve, randomBoard, zeroPosition, isGoal } from './solver';
+import { sleep } from "./tools";
 
 function App() {
   return (
     <div className="App">
-        <h1>Number Puzzle</h1>
-        <MakeTable />
+      <h1>Number Puzzle</h1>
+      <MakeTable />
     </div>
   );
 }
-
-function isGoal(board: number[][]): boolean {
-  const size = board.length;
-  const nums = size * size;
-  for (let i = 0; i < size; i++) {
-    for (let j = 0; j < size; j++)
-      if (board[i][j] !== (i * size + j + 1) % nums)
-        return false;
-  }
-  return true;
-}
-
 
 type Point = {
   i: number;
@@ -34,6 +23,7 @@ enum Status {
   Playing = "Playing",
   Clear = "Clear"
 };
+
 
 function slidable(board: number[][], p: Point): boolean {
   if (board[p.i][p.j] === 0)
@@ -49,17 +39,23 @@ function slidable(board: number[][], p: Point): boolean {
 
   return false;
 }
+type GlobalProperty = {
+  stop: boolean;
+  speed: number;
+  progress: Dispatch<SetStateAction<string>> | undefined;
+};
 
-
-let interrupt = { stop: false };
-let globalSpeed = 500;
+let property: GlobalProperty = { stop: false, speed: 500, progress: undefined };
 function MakeTable() {
   const [size, setSize] = useState(3);
-  const [speed, setSpeed] = useState(globalSpeed);
+  const [speed, setSpeed] = useState(property.speed);
   const [board, setBoard] = useState(randomBoard(size));
   const [dragPoint, setDragPoint] = useState<Point>({ j: -1, i: -1 });
   const [answer, setAnswer] = useState<number[][][]>([]);
   const [status, setStatus] = useState<Status>(Status.Manual);
+  const [message, setMessage] = useState("");
+  const [progress, setProgress] = useState("");
+  property.progress = setProgress;
 
   const dragStart = (p: Point) => {
     setDragPoint(p);
@@ -73,7 +69,7 @@ function MakeTable() {
       setBoard(newBoard);
       setDragPoint(p);
       setStatus(isGoal(newBoard) ? Status.Clear : Status.Manual);
-      interrupt.stop = false;
+      property.stop = false;
     }
   };
   const clickSwap = (p: Point) => {
@@ -85,27 +81,29 @@ function MakeTable() {
       [newBoard[x][y], newBoard[p.i][p.j]] = [newBoard[p.i][p.j], newBoard[x][y]];
       setBoard(newBoard);
       setStatus(isGoal(newBoard) ? Status.Clear : Status.Manual);
-      interrupt.stop = false;
+      property.stop = false;
     }
   };
   const onClickReset = () => {
     setBoard(randomBoard(size));
     setAnswer([]);
     setStatus(Status.Manual);
-    interrupt.stop = false;
+    setProgress("");
+    property.stop = false;
   };
   const onClickSolve = async () => {
     setStatus(Status.Solving);
-    await sleep(1);
-    const path = await solve(board, interrupt);
+    await sleep(0);
+    const path = await solve(board, property);
     if (path.length === 0) {
-      interrupt.stop = false;
+      property.stop = false;
       return;
     }
     setStatus(Status.Solved);
+    setMessage(`(${path.length - 1} step)`);
     console.log(path);
     setAnswer(path);
-    interrupt.stop = false;
+    property.stop = false;
   };
   const onClickPlay = async () => {
     if (answer.length === 0)
@@ -114,17 +112,17 @@ function MakeTable() {
     for (const brd of answer) {
       setBoard(brd);
       console.log(brd);
-      await sleep(globalSpeed);
-      if (interrupt.stop) {
-        interrupt.stop = false;
+      await sleep(property.speed);
+      if (property.stop) {
+        property.stop = false;
         return;
       }
     }
     setStatus(Status.Clear);
-    interrupt.stop = false;
+    property.stop = false;
   };
   const onClickStop = () => {
-    interrupt.stop = true;
+    property.stop = true;
     setStatus(Status.Manual);
   };
   const onChangeSize = (e: BaseSyntheticEvent) => {
@@ -133,13 +131,16 @@ function MakeTable() {
     setBoard(randomBoard(newSize));
     setAnswer([]);
     setStatus(Status.Manual);
-    interrupt.stop = false;
+    setProgress("");
+    property.stop = false;
   };
   const onChangeSpeed = (e: BaseSyntheticEvent) => {
     const newSpeed = -Number(e.target.value);
     setSpeed(newSpeed);
-    globalSpeed = newSpeed;
+    property.speed = newSpeed;
   };
+
+
   return (
     <div>
       <p>
@@ -172,7 +173,8 @@ function MakeTable() {
           )}
         </tbody>
       </table>
-      <p>Status: {status}</p>
+      <p>Status: {status} {status === Status.Solved ? message : ""}</p>
+      <p>{progress}</p>
     </div>
   );
 }
